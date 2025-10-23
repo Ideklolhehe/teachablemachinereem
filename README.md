@@ -1,8 +1,21 @@
 # Teachable Machine API for Adalo
 
-This project provides an API wrapper for your Teachable Machine model that can be easily integrated with Adalo or any other application.
+This project provides a ready-to-deploy web application that wraps your Teachable Machine model, making it easy to integrate AI-powered image classification into Adalo or any other app.
+
+**Your Model**: [https://teachablemachine.withgoogle.com/models/3YsHajZDm/](https://teachablemachine.withgoogle.com/models/3YsHajZDm/)
+
+## ✨ Features
+
+- 🎯 **Interactive Prediction Interface** - Upload images or use webcam for real-time predictions
+- 📱 **Adalo Ready** - Can be embedded as a WebView in your Adalo app
+- 🌐 **Cloud Deployable** - Works on Heroku, Render, Railway, Vercel, and more
+- 🎨 **Beautiful UI** - Modern, responsive design with visual feedback
+- 🔒 **Secure** - File cleanup, CORS support, and production-ready configuration
+- ⚡ **Fast** - Client-side AI processing means no server bottlenecks
 
 ## 🚀 Quick Start
+
+**New to this?** Check out the [Quick Start Guide](QUICKSTART.md) for a 10-minute setup!
 
 ### Prerequisites
 - Node.js 14 or higher
