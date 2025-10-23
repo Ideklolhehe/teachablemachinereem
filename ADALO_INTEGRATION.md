@@ -29,7 +29,7 @@ This guide will help you integrate your Teachable Machine model with your Adalo 
 2. Configure:
    - **Name**: "Predict Image"
    - **Method**: POST
-   - **Endpoint**: `/predict-url`
+   - **Endpoint**: `/upload`
    - **Headers**:
      ```
      Content-Type: application/json
