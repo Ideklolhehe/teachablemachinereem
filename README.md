@@ -233,7 +233,20 @@ On error:
 - The API accepts images up to 10MB in size
 - CORS is enabled for all origins (configure in `server.js` for production)
 - Uploaded files are automatically deleted after processing
-- Consider adding authentication for production use
+- **IMPORTANT for Production**: Add rate limiting to prevent abuse. Recommended packages:
+  - `express-rate-limit` for general rate limiting
+  - `express-slow-down` to slow down repeated requests
+  
+  Example:
+  ```javascript
+  const rateLimit = require('express-rate-limit');
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+  });
+  app.use('/upload', limiter);
+  ```
+- Consider adding authentication for production apps (API keys, OAuth, etc.)
 
 ## 📄 License
 

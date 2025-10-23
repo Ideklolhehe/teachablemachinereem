@@ -76,14 +76,17 @@ app.post('/upload', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
+    // Use the multer-generated path (already sanitized)
+    const filePath = req.file.path;
+    
     // Read the uploaded file and convert to base64
-    const imageBuffer = fs.readFileSync(req.file.path);
+    const imageBuffer = fs.readFileSync(filePath);
     const base64Image = imageBuffer.toString('base64');
     const mimeType = req.file.mimetype || 'image/jpeg';
     const dataUrl = `data:${mimeType};base64,${base64Image}`;
     
     // Clean up uploaded file
-    fs.unlinkSync(req.file.path);
+    fs.unlinkSync(filePath);
     
     res.json({
       success: true,
@@ -95,7 +98,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     console.error('Upload error:', error);
     
     // Clean up uploaded file on error
-    if (req.file && fs.existsSync(req.file.path)) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
     
