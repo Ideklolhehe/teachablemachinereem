@@ -27,33 +27,6 @@ if (!fs.existsSync('uploads')) {
 // Teachable Machine model URL
 const MODEL_URL = 'https://teachablemachine.withgoogle.com/models/3YsHajZDm/';
 
-// Store model in memory (loaded on first request)
-let tmImage = null;
-let model = null;
-let metadata = null;
-
-// Load the Teachable Machine model
-async function loadModel() {
-  if (model) return; // Already loaded
-  
-  try {
-    console.log('Loading Teachable Machine model...');
-    tmImage = require('@teachablemachine/image');
-    
-    const modelURL = MODEL_URL + 'model.json';
-    const metadataURL = MODEL_URL + 'metadata.json';
-    
-    model = await tmImage.load(modelURL, metadataURL);
-    metadata = model.getMetadata();
-    
-    console.log('Model loaded successfully!');
-    console.log('Model classes:', metadata);
-  } catch (error) {
-    console.error('Error loading model:', error);
-    throw error;
-  }
-}
-
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -62,11 +35,33 @@ app.get('/', (req, res) => {
     modelUrl: MODEL_URL,
     endpoints: {
       health: 'GET /',
-      predict: 'POST /predict',
-      predictUrl: 'POST /predict-url',
-      test: 'GET /test'
+      predict: 'GET /predict (interactive prediction page)',
+      info: 'GET /info (model information)',
+      test: 'GET /test (testing interface)'
+    },
+    integration: {
+      adalo: 'Use the /predict page URL in your Adalo WebView component or integrate directly using the model URL: ' + MODEL_URL
     }
   });
+});
+
+// Model info endpoint
+app.get('/info', (req, res) => {
+  res.json({
+    modelUrl: MODEL_URL,
+    modelJsonUrl: MODEL_URL + 'model.json',
+    metadataUrl: MODEL_URL + 'metadata.json',
+    instructions: {
+      direct: 'You can use the model URL directly in your application with TensorFlow.js and Teachable Machine library',
+      webview: 'Use the /predict endpoint as a WebView in Adalo for a complete prediction interface',
+      custom: 'Load the model in your own frontend using @teachablemachine/image library'
+    }
+  });
+});
+
+// Interactive prediction page
+app.get('/predict', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'predict.html'));
 });
 
 // Test page endpoint
@@ -74,43 +69,30 @@ app.get('/test', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'test.html'));
 });
 
-// Prediction endpoint - accepts image file
-app.post('/predict', upload.single('image'), async (req, res) => {
+// Image upload endpoint - converts to base64
+app.post('/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // Load model if not already loaded
-    await loadModel();
-
-    // Load and predict
-    const tf = require('@tensorflow/tfjs-node');
+    // Read the uploaded file and convert to base64
     const imageBuffer = fs.readFileSync(req.file.path);
-    const tfimage = tf.node.decodeImage(imageBuffer);
-    
-    const predictions = await model.predict(tfimage);
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = req.file.mimetype || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
     
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
     
-    // Format predictions
-    const results = predictions.map(p => ({
-      className: p.className,
-      probability: p.probability
-    }));
-    
-    // Sort by probability
-    results.sort((a, b) => b.probability - a.probability);
-    
     res.json({
       success: true,
-      predictions: results,
-      topPrediction: results[0]
+      imageUrl: dataUrl,
+      message: 'Image uploaded successfully. Use this data URL with the model.'
     });
     
   } catch (error) {
-    console.error('Prediction error:', error);
+    console.error('Upload error:', error);
     
     // Clean up uploaded file on error
     if (req.file && fs.existsSync(req.file.path)) {
@@ -119,74 +101,7 @@ app.post('/predict', upload.single('image'), async (req, res) => {
     
     res.status(500).json({ 
       success: false,
-      error: 'Prediction failed', 
-      details: error.message 
-    });
-  }
-});
-
-// Prediction endpoint - accepts image URL or base64
-app.post('/predict-url', async (req, res) => {
-  try {
-    const { imageUrl, imageBase64 } = req.body;
-    
-    if (!imageUrl && !imageBase64) {
-      return res.status(400).json({ 
-        error: 'Either imageUrl or imageBase64 must be provided' 
-      });
-    }
-
-    // Load model if not already loaded
-    await loadModel();
-
-    const tf = require('@tensorflow/tfjs-node');
-    let tfimage;
-    
-    if (imageBase64) {
-      // Handle base64 image
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      const imageBuffer = Buffer.from(base64Data, 'base64');
-      tfimage = tf.node.decodeImage(imageBuffer);
-    } else {
-      // Handle URL
-      const https = require('https');
-      const http = require('http');
-      
-      const imageBuffer = await new Promise((resolve, reject) => {
-        const client = imageUrl.startsWith('https') ? https : http;
-        client.get(imageUrl, (response) => {
-          const chunks = [];
-          response.on('data', (chunk) => chunks.push(chunk));
-          response.on('end', () => resolve(Buffer.concat(chunks)));
-          response.on('error', reject);
-        }).on('error', reject);
-      });
-      
-      tfimage = tf.node.decodeImage(imageBuffer);
-    }
-    
-    const predictions = await model.predict(tfimage);
-    
-    // Format predictions
-    const results = predictions.map(p => ({
-      className: p.className,
-      probability: p.probability
-    }));
-    
-    // Sort by probability
-    results.sort((a, b) => b.probability - a.probability);
-    
-    res.json({
-      success: true,
-      predictions: results,
-      topPrediction: results[0]
-    });
-    
-  } catch (error) {
-    console.error('Prediction error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Prediction failed', 
+      error: 'Upload failed', 
       details: error.message 
     });
   }
@@ -197,4 +112,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Visit http://localhost:${PORT} for API info`);
   console.log(`Visit http://localhost:${PORT}/test for testing interface`);
+  console.log(`Visit http://localhost:${PORT}/predict for interactive predictions`);
+  console.log(`\nTeachable Machine Model: ${MODEL_URL}`);
 });
+
